@@ -1,21 +1,67 @@
+from random import randint
+import pickle
 import socket
+import _thread as thread
+from states import candidate, follower, leader, state
 
-UDP_IP = "127.0.0.1"
-UDP_PORT = 5005
 
-sock = socket.socket(socket.AF_INET,
-                     socket.SOCK_DGRAM)
+class Server:
 
-sock.bind((UDP_IP, UDP_PORT))
+    def __init__(self):
+        self.state = follower.Follower()
+        self.state.timeout = randint(150, 300)
+        self.run()
 
-while True:
-    data, addr = sock.recvfrom(1024)
-    print(data)
+    def run(self):
+        socket.setdefaulttimeout(self.state.timeout/1000)
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind(('', 8000))
+        self.server.listen()
 
-# termo: quando começa a eleição e termina com a falta do lider
-# / mensagem : {termo}
-# quando um seguidor recebe uma mensagem com um termo
-# menor que o seu, ignora esta mensagem
-# quando um seguidor recebe uma mensagem com um termo
-# maior que o seu, atualiza o termo e torna-se seguidor do
-# líder vigente
+        while True:
+            try:
+                (clientsocket, address) = self.server.accept()
+                message = clientsocket.recv(1024)
+                message_type, message_value = pickle.loads(message)
+
+                if message_type == 'PULSE':
+                    print('PULSE')
+                    value, log, uncommited = message_value
+                    if self.state.value != value:
+                        print('Updating value to {}'.format(value))
+                        self.state.value = value
+                    self.log = log
+                    self.uncommited = uncommited
+
+                    # se nao for commitado
+                    self.state = follower.Follower
+                    self.server.settimeout(self.state.timeout/1000)
+                    if uncommited:
+                        self.state.process_consensus(uncommited, address[0])
+
+                elif message_type == 'VOTE':
+                    new_term = message_value
+                    if self.state.term != new_term:
+                        self.term = new_term
+                        print('voting')
+                        try:
+                            s = socket.socket(
+                                socket.AF_INET, socket.SOCK_STREAM)
+                            s.connect((address[0], 8001))
+                            message = ('1', self.term)
+                            s.send(pickle.dumps(message))
+                            s.close()
+                        except ConnectionRefusedError:
+                            pass
+
+            except socket.timeout:
+                print('timeout!!')
+                if not self.state == leader.Leader:
+                    self.state.switch(candidate.Candidate)
+                    self.state.run()
+                else:
+                    self.state.send_heartbeat()
+
+
+if __name__ == '__main__':
+    Server()
