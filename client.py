@@ -2,13 +2,11 @@ import time
 import socket
 import pickle
 
-nodes = {'server1', 'server2', 'server3'}
+nodes = {8001, 8002, 8003}
+message = 'SIMPLE MESSAGE'
 
-time.sleep(15)
-message = 'teste'
 for node in nodes:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host_ip = socket.gethostbyname(node)
-    s.connect((host_ip, 8002))
+    s.connect((socket.getservbyport(node), 8002))
     s.send(pickle.dumps(message))
     s.close()

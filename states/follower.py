@@ -20,7 +20,7 @@ class Follower(State):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((host_ip, 8003))
-            message = ('Log accepted',)
+            message = ('loaded log',)
             s.send(pickle.dumps(message))
             s.close()
         except ConnectionRefusedError:

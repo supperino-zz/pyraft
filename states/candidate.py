@@ -27,7 +27,7 @@ class Candidate(State):
             s.send(pickle.dumps(message))
             s.close()
 
-        while votes <= len(self.neighboors)//2:
+        while votes <= len(self.neighboors) // 2:
             try:
                 (clientsocket, address) = vote_listen.accept()
             except socket.timeout:
